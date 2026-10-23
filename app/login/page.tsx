@@ -2,15 +2,12 @@ import { signIn } from "./actions";
 
 const errorMessages: Record<string, string> = {
   missing: "Enter both your email address and password.",
-  email_not_confirmed: "This email address has not been confirmed in Supabase Authentication.",
-  user_unavailable: "This account is currently unavailable. Contact the system administrator.",
-  rate_limited: "Too many sign-in attempts. Please wait a few minutes and try again.",
-  credentials_rejected: "Supabase rejected the sign-in credentials. The server logs now contain a safe diagnostic code for the administrator.",
+  auth_failed: "Authentication provider rejected the sign-in. Diagnostic details:",
 };
 
-export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; code?: string; status?: string; message?: string }> }) {
   const p = await searchParams;
-  const errorMessage = p.error ? errorMessages[p.error] ?? errorMessages.credentials_rejected : null;
+  const errorMessage = p.error ? errorMessages[p.error] ?? "Sign-in could not be completed." : null;
   return (
     <main className="login-wrap">
       <section className="login-card">
@@ -18,7 +15,18 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <p className="eyebrow">CRESCENT CONTRACTORS</p>
         <h1>Management Control Centre</h1>
         <p className="muted">Sign in with your authorised Crescent account.</p>
-        {errorMessage && <div className="error" role="alert">{errorMessage}</div>}
+        {errorMessage && (
+          <div className="error" role="alert">
+            {errorMessage}
+            {p.error === "auth_failed" && (
+              <div style={{ marginTop: 8, fontSize: 13, overflowWrap: "anywhere" }}>
+                <div>Code: {p.code || "not supplied"}</div>
+                <div>Status: {p.status || "not supplied"}</div>
+                <div>Message: {p.message || "not supplied"}</div>
+              </div>
+            )}
+          </div>
+        )}
         <form action={signIn}>
           <label>Email address<input name="email" type="email" required autoComplete="username" /></label>
           <label>Password<input name="password" type="password" required autoComplete="current-password" /></label>
