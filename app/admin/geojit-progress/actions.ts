@@ -117,7 +117,7 @@ export async function submitValuationEntry(fd:FormData){
  if(be||!b||b.project_id!==project_id)throw new Error("Selected BOQ item does not belong to this project.");
  if(b.rate===null||Number(b.rate)<0)throw new Error("This BOQ item has no valid rate. Update its BOQ rate first.");
  if(activity_id){const {data:a}=await s.from("project_activities").select("id,project_id").eq("id",activity_id).single();if(!a||a.project_id!==project_id)throw new Error("Invalid programme activity.");}
- if(package_id){const {data:k}=await s.from("project_stage_packages").select("id,project_progress_stages(project_id)").eq("id",package_id).single();if(!k)throw new Error("Invalid work package.");}
+ if(package_id){const {data:k,error:ke}=await s.from("project_stage_packages").select("id,stage_id").eq("id",package_id).single();if(ke||!k)throw new Error("Invalid work package.");const {data:st,error:ste}=await s.from("project_progress_stages").select("id,project_id").eq("id",k.stage_id).single();if(ste||!st||st.project_id!==project_id)throw new Error("Selected package does not belong to this project.");}
  const {data:entry,error:ee}=await s.from("valuation_entries").insert({project_id,work_date,location_label:String(fd.get("location_label")||"").trim()||null,activity_id,package_id,remarks:String(fd.get("remarks")||"").trim()||null,evidence_path:String(fd.get("evidence_path")||"").trim()||null,status:"submitted",submitted_by:user.id}).select("id").single();
  if(ee||!entry)throw new Error(ee?.message||"Could not create valuation entry.");
  const {error:ie}=await s.from("valuation_entry_items").insert({entry_id:entry.id,boq_item_id,completed_quantity,rate_snapshot:Number(b.rate)});
