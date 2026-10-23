@@ -24,3 +24,48 @@ export async function reviewDailyQuantity(fd:FormData){
  const {error}=await s.from("daily_progress_entries").update({status:decision,reviewed_by:user.id,reviewed_at:new Date().toISOString(),review_note:note}).eq("id",id).eq("status","submitted");
  if(error)throw new Error(error.message);revalidatePath("/admin/geojit-progress");
 }
+
+function parseCsv(text:string):string[][] {
+ const rows:string[][]=[];let row:string[]=[];let field="";let quoted=false;
+ for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++;}else if(c==='"')quoted=false;else field+=c;}else if(c==='"')quoted=true;else if(c===','){row.push(field);field="";}else if(c==="\\n"){row.push(field.replace(/\\r$/,""));if(row.some(x=>x.trim()))rows.push(row);row=[];field="";}else field+=c;}
+ row.push(field.replace(/\\r$/,""));if(row.some(x=>x.trim()))rows.push(row);return rows;
+}
+function num(v:string){if(!v?.trim())return null;const n=Number(v);return Number.isFinite(n)?n:null;}
+export async function importGeojitCsv(fd:FormData){
+ const {s,user,role}=await requireUser();
+ if(!["admin","md","director","general_manager"].includes(role))throw new Error("Only an administrator can import the programme or BOQ.");
+ const projectId=String(fd.get("project_id")||"");
+ const kind=String(fd.get("kind")||"");
+ const file=fd.get("file");
+ if(!projectId||!(file instanceof File)||!file.size)throw new Error("Choose a valid CSV file.");
+ const {data:project,error:pe}=await s.from("projects").select("id").eq("id",projectId).single();
+ if(pe||!project)throw new Error("Project not found.");
+ const matrix=parseCsv((await file.text()).replace(/^\\uFEFF/,""));
+ if(matrix.length<2)throw new Error("The CSV has no data rows.");
+ const headers=matrix[0].map(x=>x.trim());
+ const records=matrix.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,(r[i]||"").trim()])));
+ if(kind==="activities"){
+  const required=["source_activity_ref","wbs_code","parent_wbs","activity_name","duration_days","baseline_start","baseline_finish"];
+  if(required.some(h=>!headers.includes(h)))throw new Error("This is not a valid programme import CSV.");
+  const {data:existing}=await s.from("project_activities").select("source_activity_ref").eq("project_id",projectId);
+  const seen=new Set((existing||[]).map(x=>x.source_activity_ref));
+  const fresh=records.filter(x=>x.source_activity_ref&&!seen.has(x.source_activity_ref));
+  const payload=fresh.map(x=>({project_id:projectId,source_activity_ref:x.source_activity_ref,wbs_code:x.wbs_code,activity_name:x.activity_name,duration_days:num(x.duration_days),baseline_start:x.baseline_start||null,baseline_finish:x.baseline_finish||null,source_revision:"Rev 4 label in task name; source file named Rev 3",sort_order:num(x.source_activity_ref)||0,created_by:user.id}));
+  for(let i=0;i<payload.length;i+=100){const {error}=await s.from("project_activities").insert(payload.slice(i,i+100));if(error)throw new Error("Programme import stopped: "+error.message);}
+  const {data:all}=await s.from("project_activities").select("id,wbs_code,source_activity_ref").eq("project_id",projectId);
+  const byWbs=new Map((all||[]).map(x=>[x.wbs_code,x.id]));
+  for(const x of records){const id=byWbs.get(x.wbs_code);const parent=byWbs.get(x.parent_wbs);if(id&&parent){const {error}=await s.from("project_activities").update({parent_activity_id:parent}).eq("id",id);if(error)throw new Error("Hierarchy linking stopped: "+error.message);}}
+  revalidatePath("/admin/geojit-progress");return;
+ }
+ if(kind==="boq"){
+  const required=["source_row_number","item_code","bill_description","unit","bill_quantity","final_quantity","rate","amount","trade","source_description"];
+  if(required.some(h=>!headers.includes(h)))throw new Error("This is not a valid BOQ import CSV.");
+  const {data:existing}=await s.from("project_boq_items").select("source_row_number").eq("project_id",projectId);
+  const seen=new Set((existing||[]).map(x=>String(x.source_row_number)));
+  const fresh=records.filter(x=>x.source_row_number&&!seen.has(String(x.source_row_number)));
+  const payload=fresh.map(x=>({project_id:projectId,source_row_number:num(x.source_row_number),item_code:x.item_code||null,bill_description:x.bill_description||"(description not provided)",unit:x.unit||"—",bill_quantity:num(x.bill_quantity),final_quantity:num(x.final_quantity),rate:num(x.rate),amount:num(x.amount),trade:x.trade||null,source_description:x.source_description||null,created_by:user.id}));
+  for(let i=0;i<payload.length;i+=100){const {error}=await s.from("project_boq_items").insert(payload.slice(i,i+100));if(error)throw new Error("BOQ import stopped: "+error.message);}
+  revalidatePath("/admin/geojit-progress");return;
+ }
+ throw new Error("Unknown import type.");
+}
