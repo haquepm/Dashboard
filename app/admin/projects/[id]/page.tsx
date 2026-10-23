@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { use, useState } from "react";
 import { saveWorkspaceEntry } from "./actions";
 const sections = [
  ["overview","Project Profile",["Project description","Project image URL","Project start date","Original completion date","Revised completion date","Project manager","Project status"]],
@@ -12,8 +12,8 @@ const sections = [
  ["responsibilities","Upcoming Activities & Alerts",["Record type (Milestone / Activity / Alert)","Title","Description","Project stage / work package","Planned date","Revised date","Actual completion date","Start date","Due date","Responsible person","Priority","Status","Alert category","Approval required (Yes / No)","Remarks"]],
  ["documents","Documents & Photographs",["Document title","Document category","Document reference number","Document date","Related work package","File URL","Uploaded by","Remarks"]]
 ] as const;
-export default function ProjectWorkspace({params}:{params:{id:string}}){
- const id=params.id; const [section,setSection]=useState("overview"); const [saving,setSaving]=useState(false);
+export default function ProjectWorkspace({params}:{params:Promise<{id:string}>}){
+ const {id}=use(params); const [section,setSection]=useState("overview"); const [saving,setSaving]=useState(false);
  const active=sections.find(s=>s[0]===section)!;
  async function submit(formData:FormData){setSaving(true);try{await saveWorkspaceEntry(formData);window.location.reload();}finally{setSaving(false);}}
  return <main className="admin-main" style={{maxWidth:1500,margin:"0 auto",padding:30}}>
