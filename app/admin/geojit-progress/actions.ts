@@ -88,8 +88,10 @@ export async function submitStageProgress(fd:FormData){
  const project_id=String(fd.get("project_id")||""),package_id=String(fd.get("package_id")||"");
  const completion_percent=Number(fd.get("completion_percent")),work_date=String(fd.get("work_date")||"");
  if(!project_id||!package_id||!work_date||!Number.isFinite(completion_percent)||completion_percent<0||completion_percent>100)throw new Error("Enter a valid completion percentage and work date.");
- const {data:p,error:pe}=await s.from("project_stage_packages").select("id,stage_id,project_progress_stages(project_id)").eq("id",package_id).single();
- if(pe||!p||!p.project_progress_stages||Array.isArray(p.project_progress_stages)||p.project_progress_stages.project_id!==project_id)throw new Error("Selected work package does not belong to this project.");
+ const {data:p,error:pe}=await s.from("project_stage_packages").select("id,stage_id").eq("id",package_id).single();
+ if(pe||!p)throw new Error("Selected work package was not found.");
+ const {data:stage,error:se}=await s.from("project_progress_stages").select("id,project_id").eq("id",p.stage_id).single();
+ if(se||!stage||stage.project_id!==project_id)throw new Error("Selected work package does not belong to this project.");
  const {error}=await s.from("project_stage_updates").insert({project_id,package_id,work_date,completion_percent,remarks:String(fd.get("remarks")||""),evidence_path:String(fd.get("evidence_path")||"")||null,status:"submitted",submitted_by:user.id});
  if(error)throw new Error(error.message);revalidatePath("/admin/geojit-progress");
 }
