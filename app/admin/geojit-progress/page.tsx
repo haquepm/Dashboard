@@ -49,7 +49,7 @@ export default async function GeojitProgressPage(){
  <button className="primary">Submit</button></form>):"—"}
  </td></tr>})}
  </tbody></table></div>
- </div></article>)}
+ </article>)}
  </div></section>
  <section className="admin-panel"><h2>Pending verification</h2><div className="table-wrap"><table><thead><tr><th>Submitted</th><th>Work package</th><th>Completion</th><th>Remarks</th><th>Review</th></tr></thead><tbody>
  {pending.map(u=>{const stage=stageRows.find(s=>s.pkgs.some((p:any)=>p.id===u.package_id));const pkg=stage?.pkgs.find((p:any)=>p.id===u.package_id);return <tr key={u.id}><td>{u.work_date}</td><td>{stage?.stage_name} / {pkg?.package_name}</td><td>{u.completion_percent}%</td><td>{u.remarks||"—"}</td><td>{canReview?<form action={reviewStageProgress} className="inline-review"><input type="hidden" name="id" value={u.id}/><input name="note" placeholder="Review note"/><button name="decision" value="approved">Approve</button><button name="decision" value="rejected" className="reject">Reject</button><button name="decision" value="returned" className="secondary">Return</button></form>:"Awaiting review"}</td></tr>})}
