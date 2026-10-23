@@ -31,17 +31,24 @@ export default async function GeojitProgressPage(){
  <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><div><span className="eyebrow">{s.stage_code}</span><h3>{s.stage_name}</h3></div><strong>{s.progress}%</strong></div>
  <div style={{height:8,background:"#e5e7eb",borderRadius:10,overflow:"hidden",margin:"10px 0"}}><div style={{height:8,width:s.progress+"%",background:"#16865b"}}/></div>
  <small className="muted">{s.approvedCount} of {s.pkgs.length} packages have approved progress · Stage weight: {s.weight_percent===null?"Not assigned":s.weight_percent+"%"}</small>
- <div style={{display:"grid",gap:10,marginTop:14}}>
- {s.pkgs.map((p:any)=><div key={p.id} style={{borderTop:"1px solid var(--border,#ddd)",paddingTop:10}}>
- <div style={{display:"flex",justifyContent:"space-between",gap:8}}><b>{p.package_name}</b><span>{latest.get(p.id)?.status==="approved"?latest.get(p.id).completion_percent+"%":"Not approved"}</span></div>
- {canSubmit&&<form action={submitStageProgress} className="inline-review" style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+ <div style={{marginTop:14,overflowX:"auto"}}>
+ <table style={{width:"100%",borderCollapse:"collapse",minWidth:760}}>
+ <thead><tr style={{textAlign:"left",borderBottom:"1px solid var(--border,#ddd)"}}><th style={{padding:"10px 8px"}}>Work package</th><th style={{padding:"10px 8px"}}>Latest progress</th><th style={{padding:"10px 8px"}}>Status</th><th style={{padding:"10px 8px"}}>Update</th></tr></thead>
+ <tbody>
+ {s.pkgs.map((p:any)=>{const u=latest.get(p.id);const isSubmitted=u?.status==="submitted";return <tr key={p.id} style={{borderBottom:"1px solid var(--border,#ddd)"}}>
+ <td style={{padding:"12px 8px",fontWeight:600}}>{p.package_name}</td>
+ <td style={{padding:"12px 8px",whiteSpace:"nowrap"}}>{u?Number(u.completion_percent)+"%":"—"}</td>
+ <td style={{padding:"12px 8px",whiteSpace:"nowrap"}}><span className="pill">{isSubmitted?"Submitted":u?.status==="approved"?"Approved":u?.status==="rejected"?"Rejected":u?.status==="returned"?"Returned":"Not submitted"}</span></td>
+ <td style={{padding:"8px"}}>
+ {canSubmit?(isSubmitted?<span style={{color:"#16865b",fontWeight:600}}>Update submitted · Awaiting verification</span>:<form action={submitStageProgress} className="inline-review" style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
  <input type="hidden" name="project_id" value={project.id}/><input type="hidden" name="package_id" value={p.id}/>
- <input type="number" name="completion_percent" min="0" max="100" step="0.01" required placeholder="Completion %" style={{maxWidth:140}}/>
+ <input type="number" name="completion_percent" min="0" max="100" step="0.01" required placeholder="Completion %" style={{width:130}}/>
  <input type="date" name="work_date" required/>
  <input name="remarks" placeholder="Remarks (optional)"/>
- <input name="evidence_path" placeholder="Photo/evidence reference (optional)"/>
- <button className="primary">Submit update</button></form>}
- </div>)}
+ <input name="evidence_path" placeholder="Evidence reference (optional)"/>
+ <button className="primary">Submit</button></form>):"—"}
+ </td></tr>})}
+ </tbody></table></div>
  </div></article>)}
  </div></section>
  <section className="admin-panel"><h2>Pending verification</h2><div className="table-wrap"><table><thead><tr><th>Submitted</th><th>Work package</th><th>Completion</th><th>Remarks</th><th>Review</th></tr></thead><tbody>
