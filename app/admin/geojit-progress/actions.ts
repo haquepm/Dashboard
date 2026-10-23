@@ -25,10 +25,22 @@ export async function reviewDailyQuantity(fd:FormData){
  if(error)throw new Error(error.message);revalidatePath("/admin/geojit-progress");
 }
 
-function parseCsv(text:string):string[][] {
+function parseCsv(input:string):string[][] {
+ const text=input.replace(/^\uFEFF/,"");
  const rows:string[][]=[];let row:string[]=[];let field="";let quoted=false;
- for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++;}else if(c==='"')quoted=false;else field+=c;}else if(c==='"')quoted=true;else if(c===','){row.push(field);field="";}else if(c==="\\n"){row.push(field.replace(/\\r$/,""));if(row.some(x=>x.trim()))rows.push(row);row=[];field="";}else field+=c;}
- row.push(field.replace(/\\r$/,""));if(row.some(x=>x.trim()))rows.push(row);return rows;
+ for(let i=0;i<text.length;i++){
+  const c=text[i];
+  if(quoted){
+   if(c==='"'&&text[i+1]==='"'){field+='"';i++;}
+   else if(c==='"')quoted=false;
+   else field+=c;
+  } else if(c==='"') quoted=true;
+  else if(c===','){row.push(field);field="";}
+  else if(c==='\n'){row.push(field.replace(/\r$/,""));if(row.some(x=>x.trim()))rows.push(row);row=[];field="";}
+  else field+=c;
+ }
+ row.push(field.replace(/\r$/,""));if(row.some(x=>x.trim()))rows.push(row);
+ return rows;
 }
 function num(v:string){if(!v?.trim())return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 export async function importGeojitCsv(fd:FormData){
@@ -40,7 +52,7 @@ export async function importGeojitCsv(fd:FormData){
  if(!projectId||!(file instanceof File)||!file.size)throw new Error("Choose a valid CSV file.");
  const {data:project,error:pe}=await s.from("projects").select("id").eq("id",projectId).single();
  if(pe||!project)throw new Error("Project not found.");
- const matrix=parseCsv((await file.text()).replace(/^\\uFEFF/,""));
+ const matrix=parseCsv(await file.text());
  if(matrix.length<2)throw new Error("The CSV has no data rows.");
  const headers=matrix[0].map(x=>x.trim());
  const records=matrix.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,(r[i]||"").trim()])));
