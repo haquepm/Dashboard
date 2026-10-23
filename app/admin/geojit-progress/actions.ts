@@ -105,3 +105,40 @@ export async function reviewStageProgress(fd:FormData){
  const {error}=await s.from("project_stage_updates").update({status:decision,reviewed_by:user.id,reviewed_at:new Date().toISOString(),review_note:note}).eq("id",id).eq("status","submitted");
  if(error)throw new Error(error.message);revalidatePath("/admin/geojit-progress");
 }
+
+export async function submitValuationEntry(fd:FormData){
+ const {s,user,role}=await requireUser();
+ if(!["admin","md","director","general_manager","project_manager","site_engineer","qs"].includes(role))throw new Error("You do not have permission to submit valuation.");
+ const project_id=String(fd.get("project_id")||""),boq_item_id=String(fd.get("boq_item_id")||"");
+ const completed_quantity=Number(fd.get("completed_quantity")),work_date=String(fd.get("work_date")||"");
+ const activity_id=String(fd.get("activity_id")||"")||null,package_id=String(fd.get("package_id")||"")||null;
+ if(!project_id||!boq_item_id||!work_date||!Number.isFinite(completed_quantity)||completed_quantity<=0)throw new Error("Choose a BOQ item, date and valid completed quantity.");
+ const {data:b,error:be}=await s.from("project_boq_items").select("id,project_id,unit,rate,final_quantity,bill_description,item_code").eq("id",boq_item_id).single();
+ if(be||!b||b.project_id!==project_id)throw new Error("Selected BOQ item does not belong to this project.");
+ if(b.rate===null||Number(b.rate)<0)throw new Error("This BOQ item has no valid rate. Update its BOQ rate first.");
+ if(activity_id){const {data:a}=await s.from("project_activities").select("id,project_id").eq("id",activity_id).single();if(!a||a.project_id!==project_id)throw new Error("Invalid programme activity.");}
+ if(package_id){const {data:k}=await s.from("project_stage_packages").select("id,project_progress_stages(project_id)").eq("id",package_id).single();if(!k)throw new Error("Invalid work package.");}
+ const {data:entry,error:ee}=await s.from("valuation_entries").insert({project_id,work_date,location_label:String(fd.get("location_label")||"").trim()||null,activity_id,package_id,remarks:String(fd.get("remarks")||"").trim()||null,evidence_path:String(fd.get("evidence_path")||"").trim()||null,status:"submitted",submitted_by:user.id}).select("id").single();
+ if(ee||!entry)throw new Error(ee?.message||"Could not create valuation entry.");
+ const {error:ie}=await s.from("valuation_entry_items").insert({entry_id:entry.id,boq_item_id,completed_quantity,rate_snapshot:Number(b.rate)});
+ if(ie){await s.from("valuation_entries").delete().eq("id",entry.id);throw new Error(ie.message);}
+ revalidatePath("/admin/geojit-progress");
+}
+export async function reviewValuationEntry(fd:FormData){
+ const {s,user,role}=await requireUser();
+ const id=String(fd.get("id")||""),decision=String(fd.get("decision")||""),note=String(fd.get("note")||"");
+ if(!id)throw new Error("Missing valuation entry.");
+ const {data:e,error:er}=await s.from("valuation_entries").select("id,status").eq("id",id).single();
+ if(er||!e)throw new Error("Valuation entry not found.");
+ let next="";
+ if(decision==="qs_verified"&&role==="qs"&&e.status==="submitted")next="qs_verified";
+ else if(decision==="approved"&&["project_manager","admin","md","director","general_manager"].includes(role)&&e.status==="qs_verified")next="approved";
+ else if(decision==="rejected"&&["qs","project_manager","admin","md","director","general_manager"].includes(role)&&["submitted","qs_verified"].includes(e.status))next="rejected";
+ else if(decision==="returned"&&["qs","project_manager","admin","md","director","general_manager"].includes(role)&&["submitted","qs_verified"].includes(e.status))next="returned";
+ else throw new Error("This role cannot perform that review at the current approval stage.");
+ const {error:ue}=await s.from("valuation_entries").update({status:next,reviewed_by:user.id,reviewed_at:new Date().toISOString(),review_note:note,updated_at:new Date().toISOString()}).eq("id",id).eq("status",e.status);
+ if(ue)throw new Error(ue.message);
+ const {error:re}=await s.from("valuation_reviews").insert({entry_id:id,decision:next,note:note||null,reviewed_by:user.id});
+ if(re)throw new Error(re.message);
+ revalidatePath("/admin/geojit-progress");
+}
