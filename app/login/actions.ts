@@ -11,24 +11,21 @@ export async function signIn(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    // Log only the provider error; never log credentials or form data.
     console.error("[auth:sign-in-failed]", {
-      email,
       code: error.code ?? null,
       status: error.status ?? null,
       message: error.message,
     });
-    const reason = error.code === "email_not_confirmed"
-      ? "email_not_confirmed"
-      : error.code === "user_banned"
-        ? "user_unavailable"
-        : error.status === 429
-          ? "rate_limited"
-          : "credentials_rejected";
-    redirect(`/login?error=${reason}`);
+    const params = new URLSearchParams({
+      error: "auth_failed",
+      code: error.code || "unknown",
+      status: String(error.status || "unknown"),
+      message: error.message || "No provider message",
+    });
+    redirect(`/login?${params.toString()}`);
   }
 
-  if (!data.user) redirect("/login?error=credentials_rejected");
+  if (!data.user) redirect("/login?error=auth_failed&code=no_user");
   redirect("/admin");
 }
 
