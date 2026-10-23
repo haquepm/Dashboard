@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { submitDailyQuantity, reviewDailyQuantity } from "./actions";
+import { submitDailyQuantity, reviewDailyQuantity, importGeojitCsv } from "./actions";
 export const dynamic = "force-dynamic";
 export default async function GeojitProgressPage() {
  const supabase = await createClient();
@@ -23,6 +23,7 @@ export default async function GeojitProgressPage() {
   <header className="admin-header"><div><p className="eyebrow">GEOJIT IT TOWER / DAILY QUANTITY CONTROL</p><h1>Quantity-based Progress</h1><p className="muted">Daily site measurement submissions · QS verification · Approved quantity drives actual progress</p></div><span className="pill">{project.project_code}</span></header>
   <div className="notice">Progress denominator: Final Quantity. Original Bill Quantity remains available for comparison. Only QS-approved daily quantities count toward actual progress.</div>
   <section className="stat-grid"><article><span>Programme activities imported</span><b>{activities?.length||0}</b></article><article><span>BOQ items imported</span><b>{boq?.length||0}</b></article><article><span>Pending QS review</span><b>{entries?.filter(x=>x.status==="submitted").length||0}</b></article></section>
+  <section className="admin-panel"><h2>Import programme & BOQ</h2><p className="muted">Administrator-only import. Upload the prepared CSV files. Existing source rows are skipped on repeat imports.</p><div className="form-grid"><form action={importGeojitCsv}><input type="hidden" name="project_id" value={project.id}/><input type="hidden" name="kind" value="activities"/><label>Rev 4 programme CSV<input type="file" name="file" accept=".csv,text/csv" required/></label><button className="primary">Import programme activities</button></form><form action={importGeojitCsv}><input type="hidden" name="project_id" value={project.id}/><input type="hidden" name="kind" value="boq"/><label>Pricing Bill BOQ CSV<input type="file" name="file" accept=".csv,text/csv" required/></label><button className="primary">Import BOQ items</button></form></div></section>
   <section className="admin-panel"><h2>Daily completed quantity</h2><p className="muted">Enter actual measured quantity for the work date. Multiple submissions per BOQ item and day are supported.</p>
   {canSubmit&&boq?.length ? <form action={submitDailyQuantity} className="form-grid">
    <input type="hidden" name="project_id" value={project.id}/>
