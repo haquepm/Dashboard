@@ -17,7 +17,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
  const active=sections.find(s=>s[0]===section)!;
  async function submit(formData:FormData){setSaving(true);try{await saveWorkspaceEntry(formData);window.location.reload();}finally{setSaving(false);}}
  return <main className="admin-main" style={{maxWidth:1500,margin:"0 auto",padding:30}}>
- <a href="/admin">← Consolidated dashboard</a><header className="admin-header" style={{marginTop:20}}><div><p className="eyebrow">PROJECT WORKSPACE</p><h1>Project Data Entry</h1><p className="muted">Enter each report or update as a separate record. Values are stored exactly as entered.</p></div></header>
+ <div style={{display:"flex",gap:12,flexWrap:"wrap"}}><a href="/admin">← Consolidated dashboard</a><a className="pill" href={"/admin/rfi?project="+id}>Request for Inspection →</a></div><header className="admin-header" style={{marginTop:20}}><div><p className="eyebrow">PROJECT WORKSPACE</p><h1>Project Data Entry</h1><p className="muted">Enter each report or update as a separate record. Values are stored exactly as entered.</p></div></header>
  <nav className="workspace-tabs">{sections.map(([key,label])=><button type="button" key={key} className={section===key?"active":""} onClick={()=>setSection(key)}>{label}</button>)}</nav>
  <section className="admin-panel"><h2>{active[1]} — Direct Entry</h2><p className="muted">Complete relevant fields. Leave unavailable information blank. No derived figures are calculated.</p>
  <form action={submit} className="form-grid"><input type="hidden" name="project_id" value={id}/><input type="hidden" name="section" value={section}/>
