@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createRfi } from "./actions";
 import { signOut } from "../../login/actions";
 export const dynamic="force-dynamic";
-export default async function RfiPage(){
+export default async function RfiPage({searchParams}:{searchParams:Promise<{project?:string}>}){
+ const params=await searchParams;const selectedProject=params.project||"";
  const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)redirect("/login");
  const {data:profile}=await s.from("profiles").select("full_name,is_active").eq("id",user.id).maybeSingle();if(!profile?.is_active)redirect("/login");
  const [{data:projects},{data:rfis}]=await Promise.all([s.from("projects").select("id,project_code,name").eq("is_active",true).order("name"),s.from("rfis").select("id,project_id,rfi_number,dpr_date,submitted_at,requested_inspection_at,inspection_type,work_package,activity_description,location,status,projects(name,project_code)").order("submitted_at",{ascending:false}).limit(300)]);
